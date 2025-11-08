@@ -684,8 +684,8 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
         </section>
 
         <main className='grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)] gap-8'>
-          <div className='space-y-6'>
-            <div className='bg-white rounded-2xl shadow-sm border border-gray-100 p-6 backdrop-blur-sm'>
+          <div className='space-y-6 flex flex-col items-center'>
+            <div className='bg-white rounded-2xl shadow-sm border border-gray-100 p-6 backdrop-blur-sm max-w-xl w-full'>
               <div className='flex gap-3'>
                 <div
                   className={`h-12 w-12 rounded-full overflow-hidden flex items-center justify-center font-semibold text-lg ${
@@ -721,8 +721,15 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
                   />
                   <div className='border border-dashed border-gray-300 rounded-xl px-4 py-4 bg-gray-50/60'>
                     {imagePreview ? (
-                      <div className='relative'>
-                        <img src={imagePreview} alt='Selected preview' className='w-full h-56 object-cover rounded-lg' />
+                      <div
+                        className='relative overflow-hidden rounded-lg'
+                        style={{ aspectRatio: '1 / 1' }}
+                      >
+                        <img
+                          src={imagePreview}
+                          alt='Selected preview'
+                          className='absolute inset-0 w-full h-full object-cover'
+                        />
                         <button
                           type='button'
                           onClick={handleRemoveImage}
@@ -772,9 +779,9 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
 
             <div className='space-y-5'>
               {loading && (
-                <div className='space-y-3'>
+                <div className='space-y-3 w-full flex flex-col items-center'>
                   {Array.from({ length: 3 }).map((_, index) => (
-                    <div key={index} className='bg-white rounded-2xl shadow-sm p-6 animate-pulse'>
+                    <div key={index} className='bg-white rounded-2xl shadow-sm p-6 animate-pulse max-w-xl w-full'>
                       <div className='flex items-center gap-4 mb-4'>
                         <div className='h-12 w-12 rounded-full bg-gray-200' />
                         <div className='flex-1 space-y-2'>
@@ -789,7 +796,7 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
               )}
 
               {fetchError && !loading && (
-                <div className='bg-white border border-red-100 rounded-2xl p-6 text-red-500 text-sm'>
+                <div className='bg-white border border-red-100 rounded-2xl p-6 text-red-500 text-sm max-w-xl w-full'>
                   {fetchError}
                   <button
                     type='button'
@@ -802,7 +809,7 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
               )}
 
               {!loading && !posts.length && !fetchError && (
-                <div className='bg-white rounded-2xl border border-dashed border-gray-200 p-10 text-center space-y-3'>
+                <div className='bg-white rounded-2xl border border-dashed border-gray-200 p-10 text-center space-y-3 max-w-xl w-full'>
                   <h3 className='text-xl font-semibold text-gray-800'>Your feed is waiting</h3>
                   <p className='text-gray-500 text-sm'>Follow more creators or share something to see it appear here.</p>
                   <button
@@ -834,7 +841,7 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
                 const isEditing = editingPostId === post._id
 
                 return (
-                  <article key={post._id || index} className='bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden'>
+                  <article key={post._id || index} className='bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden max-w-xl w-full'>
                     <header className='flex items-center gap-4 px-6 py-4 relative'>
                       <div
                         className={`h-12 w-12 rounded-full overflow-hidden flex items-center justify-center font-semibold text-lg ${
@@ -932,11 +939,14 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
                         </div>
                         <div className='border border-dashed border-gray-300 rounded-xl px-4 py-4 bg-white/60'>
                           {editingImagePreview ? (
-                            <div className='relative'>
+                            <div
+                              className='relative overflow-hidden rounded-lg'
+                              style={{ aspectRatio: '1 / 1' }}
+                            >
                               <img
                                 src={editingImagePreview}
                                 alt='New image preview'
-                                className='w-full h-48 object-cover rounded-lg'
+                                className='absolute inset-0 w-full h-full object-cover'
                               />
                               <button
                                 type='button'
@@ -947,11 +957,14 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
                               </button>
                             </div>
                           ) : !removeExistingImage && post.imageUrl ? (
-                            <div className='relative'>
+                            <div
+                              className='relative overflow-hidden rounded-lg'
+                              style={{ aspectRatio: '1 / 1' }}
+                            >
                               <img
                                 src={post.imageUrl}
                                 alt={post.title || 'Current post image'}
-                                className='w-full h-48 object-cover rounded-lg'
+                                className='absolute inset-0 w-full h-full object-cover'
                               />
                               <div className='absolute top-3 right-3 flex gap-2'>
                                 <button
@@ -977,7 +990,8 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
                           ) : (
                             <label
                               htmlFor={`edit-image-${post._id}`}
-                              className='flex flex-col items-center justify-center h-28 text-sm text-gray-500 gap-2 cursor-pointer hover:text-gray-700'
+                              className='flex flex-col items-center justify-center text-sm text-gray-500 gap-2 cursor-pointer hover:text-gray-700'
+                              style={{ aspectRatio: '1 / 1' }}
                             >
                               <span className='inline-flex items-center justify-center h-10 w-10 rounded-full bg-white text-gray-400 border border-gray-200'>
                                 📷
@@ -1015,28 +1029,29 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
                     ) : (
                       <>
                         {post.imageUrl ? (
-                          <div className='relative bg-black'>
+                          <div
+                            className='relative bg-black overflow-hidden'
+                            style={{ aspectRatio: '1 / 1' }}
+                          >
                             <img
                               src={post.imageUrl}
                               alt={post.title || 'Post image'}
-                              className='w-full h-64 object-cover'
+                              className='absolute inset-0 w-full h-full object-cover'
                               loading='lazy'
                             />
-                            <div className='absolute inset-0 bg-black/20' />
-                            <h2 className='absolute bottom-4 left-6 right-6 text-white text-2xl font-bold drop-shadow-lg'>
-                              {post.title}
-                            </h2>
+                            <div className='absolute inset-0 bg-black/15' />
                           </div>
                         ) : (
-                          <div className={`h-64 bg-linear-to-br ${backgroundGradient} relative flex items-end justify-start p-6`}>
-                            <div className='absolute inset-0 bg-black/10 mix-blend-multiply' />
-                            <h2 className='relative text-white text-2xl font-bold drop-shadow-lg max-w-[70%]'>
-                              {post.title}
-                            </h2>
+                          <div
+                            className={`relative bg-linear-to-br ${backgroundGradient}`}
+                            style={{ aspectRatio: '1 / 1' }}
+                          >
+                            <div className='absolute inset-0 bg-black/10 mix-blend-multiply rounded-none' />
                           </div>
                         )}
 
                         <section className='px-6 py-5 space-y-4'>
+                          <h2 className='text-2xl font-bold text-gray-900'>{post.title}</h2>
                           <p className='text-gray-700 leading-relaxed whitespace-pre-line'>{post.content}</p>
                           <div className='flex items-center justify-between text-xs text-gray-400'>
                             <span>❤️ {Math.floor(Math.random() * 90) + 10}</span>
