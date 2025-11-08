@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 import toast from 'react-hot-toast'
+import { Landing } from '../components/Landing'
 
 const relativeTimeFromNow = (dateInput) => {
   if (!dateInput) return 'just now'
@@ -447,15 +448,7 @@ export const Home = ({ user }) => {
   }
 
   if (!user) {
-    return (
-      <div className='flex flex-col items-center justify-center min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 text-white px-4 text-center'>
-        <h1 className='text-4xl sm:text-5xl font-bold tracking-tight mb-4'>Share moments with the community</h1>
-        <p className='text-base sm:text-lg text-slate-300 max-w-lg mb-6'>
-          Log in to discover posts, create your own stories, and connect with people just like you.
-        </p>
-        <p className='text-sm text-slate-400'>Tap the login button on the top right to get started.</p>
-      </div>
-    )
+    return <Landing />
   }
 
   return (

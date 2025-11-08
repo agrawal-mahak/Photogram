@@ -46,7 +46,7 @@ const Register = () => {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Create your account
+            Get started on Photogram
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             Or{' '}
@@ -54,7 +54,7 @@ const Register = () => {
               to="/login"
               className="font-medium text-indigo-600 hover:text-indigo-500"
             >
-              sign in to your existing account
+              Sign in to see photos and videos from your friends.
             </Link>
           </p>
         </div>
