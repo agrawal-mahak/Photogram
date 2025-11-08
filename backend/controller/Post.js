@@ -30,10 +30,9 @@ export const createPost = async (req, res) => {
     });
 
     // Fetch the post with populated author information
-    const populatedPost = await Post.findById(post._id).populate(
-      "author_id",
-      "username email profileImageUrl"
-    );
+    const populatedPost = await Post.findById(post._id)
+      .populate("author_id", "username email profileImageUrl")
+      .populate("comments.user", "username email profileImageUrl");
 
     res.status(201).json({  
       message: "Post created successfully",
@@ -55,6 +54,7 @@ export const getPosts = async (req, res) => {
   try {
     const posts = await Post.find()
       .populate("author_id", "username email profileImageUrl")
+      .populate("comments.user", "username email profileImageUrl")
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -72,10 +72,9 @@ export const getPosts = async (req, res) => {
 // @access  Public
 export const getPost = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id).populate(
-      "author_id",
-      "username email profileImageUrl"
-    );
+    const post = await Post.findById(req.params.id)
+      .populate("author_id", "username email profileImageUrl")
+      .populate("comments.user", "username email profileImageUrl");
 
     if (!post) {
       return res.status(404).json({ message: "Post not found" });
@@ -132,7 +131,9 @@ export const updatePost = async (req, res) => {
     }
 
     const updatedPost = await post.save();
-    await updatedPost.populate("author_id", "username email profileImageUrl");
+    await updatedPost
+      .populate("author_id", "username email profileImageUrl")
+      .populate("comments.user", "username email profileImageUrl");
 
     res.status(200).json({
       message: "Post updated successfully",
@@ -183,6 +184,103 @@ export const deletePost = async (req, res) => {
   }
 };
 
+export const toggleLike = async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    const post = await Post.findById(postId);
+
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    const alreadyLiked = post.likes.some(
+      (likeId) => likeId.toString() === userId.toString()
+    );
+
+    if (alreadyLiked) {
+      post.likes = post.likes.filter(
+        (likeId) => likeId.toString() !== userId.toString()
+      );
+    } else {
+      post.likes.push(userId);
+    }
+
+    await post.save();
+
+    const populatedPost = await Post.findById(postId)
+      .populate("author_id", "username email profileImageUrl")
+      .populate("comments.user", "username email profileImageUrl");
+
+    return res.status(200).json({
+      message: alreadyLiked ? "Like removed" : "Post liked",
+      liked: !alreadyLiked,
+      likesCount: populatedPost.likes.length,
+      post: populatedPost,
+    });
+  } catch (error) {
+    console.error("Error toggling like:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const addComment = async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const userId = req.user?._id;
+    const text =
+      typeof req.body?.text === "string" ? req.body.text.trim() : "";
+
+    if (!userId) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    if (!text) {
+      return res.status(400).json({ message: "Comment text is required" });
+    }
+
+    if (text.length > 500) {
+      return res
+        .status(400)
+        .json({ message: "Comment must be 500 characters or less" });
+    }
+
+    const post = await Post.findById(postId);
+
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    post.comments.push({
+      user: userId,
+      text,
+    });
+
+    await post.save();
+
+    const populatedPost = await Post.findById(postId)
+      .populate("author_id", "username email profileImageUrl")
+      .populate("comments.user", "username email profileImageUrl");
+
+    const newComment =
+      populatedPost.comments[populatedPost.comments.length - 1];
+
+    return res.status(201).json({
+      message: "Comment added",
+      post: populatedPost,
+      comment: newComment,
+    });
+  } catch (error) {
+    console.error("Error adding comment:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 // @desc    Get posts by current user
 // @route   GET /api/posts/my/posts
 // @access  Private
@@ -190,6 +288,7 @@ export const getMyPosts = async (req, res) => {
   try {
     const posts = await Post.find({ author_id: req.user._id })
       .populate("author_id", "username email profileImageUrl")
+      .populate("comments.user", "username email profileImageUrl")
       .sort({ createdAt: -1 });
 
     res.status(200).json({

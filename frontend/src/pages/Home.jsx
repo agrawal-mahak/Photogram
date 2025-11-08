@@ -70,6 +70,10 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
   const [deletingPostId, setDeletingPostId] = useState(null)
   const [openMenuId, setOpenMenuId] = useState(null)
   const [favoritePostIds, setFavoritePostIds] = useState(() => new Set())
+  const [openCommentsId, setOpenCommentsId] = useState(null)
+  const [commentDrafts, setCommentDrafts] = useState({})
+  const [pendingLikes, setPendingLikes] = useState({})
+  const [pendingComments, setPendingComments] = useState({})
   const [editingPostId, setEditingPostId] = useState(null)
   const [editingFields, setEditingFields] = useState({ title: '', content: '' })
   const [editingImageFile, setEditingImageFile] = useState(null)
@@ -129,6 +133,10 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
     })
     setRemoveProfileImage(false)
     setProfileImageInputKey((prev) => prev + 1)
+    setOpenCommentsId(null)
+    setCommentDrafts({})
+    setPendingLikes({})
+    setPendingComments({})
   }, [user])
 
   useEffect(() => {
@@ -472,6 +480,113 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
     }
 
     setOpenMenuId(null)
+  }
+
+  const handleToggleComments = (postId) => {
+    setOpenCommentsId((prev) => (prev === postId ? null : postId))
+  }
+
+  const handleCommentDraftChange = (postId, value) => {
+    setCommentDrafts((prev) => ({ ...prev, [postId]: value }))
+  }
+
+  const handleToggleLike = async (postId) => {
+    if (!user) {
+      toast.error('You need to be logged in to like posts.')
+      return
+    }
+
+    const token = localStorage.getItem('token')
+
+    if (!token) {
+      toast.error('You need to be logged in to like posts.')
+      return
+    }
+
+    if (pendingLikes[postId]) return
+
+    setPendingLikes((prev) => ({ ...prev, [postId]: true }))
+
+    try {
+      const response = await axios.post(
+        `/api/posts/${postId}/like`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      const updatedPost = response.data?.post
+      if (updatedPost) {
+        setPosts((prev) =>
+          prev.map((post) => (post._id === updatedPost._id ? updatedPost : post))
+        )
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not update like right now.')
+    } finally {
+      setPendingLikes((prev) => {
+        const next = { ...prev }
+        delete next[postId]
+        return next
+      })
+    }
+  }
+
+  const handleSubmitComment = async (event, postId) => {
+    event.preventDefault()
+
+    if (!user) {
+      toast.error('You need to be logged in to comment.')
+      return
+    }
+
+    const token = localStorage.getItem('token')
+
+    if (!token) {
+      toast.error('You need to be logged in to comment.')
+      return
+    }
+
+    const rawDraft = commentDrafts[postId] || ''
+    const text = rawDraft.trim()
+
+    if (!text) {
+      toast.error('Add a message before posting your comment.')
+      return
+    }
+
+    setPendingComments((prev) => ({ ...prev, [postId]: true }))
+
+    try {
+      const response = await axios.post(
+        `/api/posts/${postId}/comments`,
+        { text },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      const updatedPost = response.data?.post
+      if (updatedPost) {
+        setPosts((prev) =>
+          prev.map((post) => (post._id === updatedPost._id ? updatedPost : post))
+        )
+        setCommentDrafts((prev) => ({ ...prev, [postId]: '' }))
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not add comment right now.')
+    } finally {
+      setPendingComments((prev) => {
+        const next = { ...prev }
+        delete next[postId]
+        return next
+      })
+    }
   }
 
   const handleDeletePost = async (postId) => {
@@ -839,6 +954,24 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
                     : false
                 const isDeleting = deletingPostId === post._id
                 const isEditing = editingPostId === post._id
+                const likesArray = Array.isArray(post.likes) ? post.likes : []
+                const commentsArray = Array.isArray(post.comments) ? post.comments : []
+                const likesCount = likesArray.length
+                const commentsCount = commentsArray.length
+                const hasLiked =
+                  likesArray.length > 0 && currentUserId
+                    ? likesArray.some((like) => {
+                        const likeId =
+                          typeof like === 'string'
+                            ? like
+                            : like?._id || like?.id || like
+                        return likeId && String(likeId) === String(currentUserId)
+                      })
+                    : false
+                const isCommentsOpen = openCommentsId === post._id
+                const commentDraft = commentDrafts[post._id] || ''
+                const isLiking = !!pendingLikes[post._id]
+                const isSubmittingComment = !!pendingComments[post._id]
 
                 return (
                   <article key={post._id || index} className='bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden max-w-xl w-full'>
@@ -1053,11 +1186,106 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
                         <section className='px-6 py-5 space-y-4'>
                           <h2 className='text-2xl font-bold text-gray-900'>{post.title}</h2>
                           <p className='text-gray-700 leading-relaxed whitespace-pre-line'>{post.content}</p>
-                          <div className='flex items-center justify-between text-xs text-gray-400'>
-                            <span>❤️ {Math.floor(Math.random() * 90) + 10}</span>
-                            <span>💬 {Math.floor(Math.random() * 20)}</span>
-                            <span>🔁 {Math.floor(Math.random() * 10)}</span>
+                          <div className='flex items-center justify-start gap-6 text-sm text-gray-500'>
+                            <button
+                              type='button'
+                              onClick={() => handleToggleLike(post._id)}
+                              disabled={isLiking}
+                              className={`inline-flex items-center gap-2 transition text-base ${
+                                hasLiked ? 'text-red-500' : 'hover:text-gray-700'
+                              } ${isLiking ? 'opacity-60 cursor-not-allowed' : ''}`}
+                            >
+                              <span className='text-2xl leading-none'>{hasLiked ? '❤️' : '🤍'}</span>
+                              <span className='font-medium'>{likesCount}</span>
+                            </button>
+                            <button
+                              type='button'
+                              onClick={() => handleToggleComments(post._id)}
+                              className={`inline-flex items-center gap-2 transition text-base ${
+                                isCommentsOpen ? 'text-blue-500' : 'hover:text-gray-700'
+                              }`}
+                            >
+                              <span className='text-2xl leading-none'>💬</span>
+                              <span className='font-medium'>{commentsCount}</span>
+                            </button>
+                            <span className='inline-flex items-center gap-2 text-gray-400 text-base'>
+                              <span className='text-2xl leading-none'>🔁</span>
+                              <span className='font-medium'>
+                                {Math.floor(Math.random() * 10) + 1}
+                              </span>
+                            </span>
               </div>
+
+                          {isCommentsOpen && (
+                            <div className='border-t border-gray-100 pt-4 space-y-4'>
+                              <div className='space-y-3 max-h-64 overflow-y-auto pr-1'>
+                                {commentsCount ? (
+                                  commentsArray.map((comment, commentIndex) => {
+                                    const commentUser = comment.user
+                                    const commentAuthorName =
+                                      (typeof commentUser === 'object' && commentUser?.username) || 'Anonymous'
+                                    const commentAvatarUrl =
+                                      typeof commentUser === 'object' ? commentUser?.profileImageUrl : null
+                                    const commentGradient = getGradientForIndex(commentIndex + index)
+                                    return (
+                                      <div key={comment._id || commentIndex} className='flex gap-3'>
+                                        <div
+                                          className={`h-8 w-8 rounded-full overflow-hidden flex items-center justify-center text-xs font-semibold ${
+                                            commentAvatarUrl
+                                              ? ''
+                                              : `bg-linear-to-br ${commentGradient} text-white`
+                                          }`}
+                                        >
+                                          {commentAvatarUrl ? (
+                                            <img
+                                              src={commentAvatarUrl}
+                                              alt={`${commentAuthorName} avatar`}
+                                              className='h-full w-full object-cover'
+                                            />
+                                          ) : (
+                                            getInitials(commentAuthorName)
+                                          )}
+                                        </div>
+                                        <div className='flex-1 bg-gray-50 rounded-2xl px-4 py-3 space-y-1'>
+                                          <div className='flex items-center justify-between text-xs text-gray-500'>
+                                            <span className='font-semibold text-gray-700'>
+                                              {commentAuthorName}
+                                            </span>
+                                            <span>{relativeTimeFromNow(comment.createdAt)}</span>
+                                          </div>
+                                          <p className='text-sm text-gray-700 whitespace-pre-line'>
+                                            {comment.text}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    )
+                                  })
+                                ) : (
+                                  <p className='text-sm text-gray-500'>Be the first to comment on this post.</p>
+                                )}
+                              </div>
+                              <form
+                                onSubmit={(event) => handleSubmitComment(event, post._id)}
+                                className='flex items-center gap-3'
+                              >
+                                <input
+                                  type='text'
+                                  value={commentDraft}
+                                  onChange={(event) => handleCommentDraftChange(post._id, event.target.value)}
+                                  placeholder='Add a comment...'
+                                  className='flex-1 border border-gray-200 rounded-full px-4 py-2 text-sm focus:border-gray-400 focus:outline-none'
+                                  maxLength={500}
+                                />
+                                <button
+                                  type='submit'
+                                  disabled={isSubmittingComment}
+                                  className='px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-full hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed'
+                                >
+                                  {isSubmittingComment ? 'Posting…' : 'Post'}
+                                </button>
+                              </form>
+                            </div>
+                          )}
                         </section>
                       </>
                     )}

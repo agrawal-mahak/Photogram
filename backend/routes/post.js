@@ -6,6 +6,8 @@ import {
   updatePost,
   deletePost,
   getMyPosts,
+  toggleLike,
+  addComment,
 } from "../controller/Post.js";
 import { protect } from "../middleware/auth.js";
 import uploadSingleImage from "../middleware/upload.js";
@@ -29,6 +31,12 @@ router.get("/", getPosts);
 
 // Get current user's posts (protected)
 router.get("/my/posts", protect, getMyPosts);
+
+// Like/unlike a post (protected)
+router.post("/:id/like", protect, toggleLike);
+
+// Add a comment to a post (protected)
+router.post("/:id/comments", protect, addComment);
 
 // Get a single post by ID (public)
 router.get("/:id", getPost);
