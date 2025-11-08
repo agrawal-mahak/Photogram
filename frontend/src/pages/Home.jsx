@@ -5,7 +5,15 @@ import React, {
   useRef,
   useState,
 } from "react";
-import axios from "axios";
+import {
+  addComment as addCommentApi,
+  deletePost as deletePostApi,
+  fetchPosts as fetchPostsApi,
+  toggleLike as toggleLikeApi,
+  updatePost as updatePostApi,
+} from "../api/postApi";
+import { updateCurrentUser } from "../api/userApi";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import toast from "react-hot-toast";
 import { Landing } from "../components/Landing";
 import { ProfileEditModal } from "../components/ProfileEditModal";
@@ -66,11 +74,54 @@ const getInitials = (name = "") => {
     .slice(0, 2);
 };
 
+const renderWithHashtags = (text = "") => {
+  if (!text) return null;
+
+  const hashtagRegex = /#[\w]+/g;
+  const segments = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = hashtagRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({
+        type: "text",
+        value: text.slice(lastIndex, match.index),
+      });
+    }
+    segments.push({ type: "hashtag", value: match[0] });
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    segments.push({
+      type: "text",
+      value: text.slice(lastIndex),
+    });
+  }
+
+  if (!segments.length) {
+    return text;
+  }
+
+  return segments.map((segment, index) =>
+    segment.type === "hashtag" ? (
+      <span key={`hashtag-${index}`} className="text-blue-500 font-medium">
+        {segment.value}
+      </span>
+    ) : (
+      <React.Fragment key={`text-${index}`}>{segment.value}</React.Fragment>
+    )
+  );
+};
+
 export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
   const [deletingPostId, setDeletingPostId] = useState(null);
+  const [postPendingDeletion, setPostPendingDeletion] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [favoritePostIds, setFavoritePostIds] = useState(() => new Set());
   const [openCommentsId, setOpenCommentsId] = useState(null);
@@ -158,15 +209,8 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
       setFetchError(null);
       const token = localStorage.getItem("token");
 
-      const response = await axios.get("/api/posts", {
-        headers: token
-          ? {
-              Authorization: `Bearer ${token}`,
-            }
-          : undefined,
-      });
-
-      setPosts(response.data?.posts ?? []);
+      const data = await fetchPostsApi(token);
+      setPosts(data?.posts ?? []);
     } catch (error) {
       setFetchError(
         error.response?.data?.message || "Unable to load feed right now."
@@ -258,6 +302,11 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
     });
   };
 
+  const deleteDialogMessage = postPendingDeletion
+    ? `This will permanently remove "${
+        postPendingDeletion.title || "this post"
+      }" from your feed.`
+    : "This will permanently remove the post from your feed.";
   const clearProfileImageSelection = useCallback((keepRemovalFlag = false) => {
     setProfileImageFile(null);
     setProfileImagePreview((prev) => {
@@ -371,18 +420,13 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
 
     try {
       setIsProfileSaving(true);
-      const response = await axios.put("/api/users/me", formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const updatedUser = response.data?.user || response.data;
+      const data = await updateCurrentUser(formData, token);
+      const updatedUser = data?.user || data;
       if (updatedUser) {
         onUserUpdated?.(updatedUser);
       }
 
-      toast.success(response.data?.message || "Profile updated");
+      toast.success(data?.message || "Profile updated");
       handleCloseProfileModal();
     } catch (error) {
       toast.error(
@@ -452,17 +496,8 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
     setPendingLikes((prev) => ({ ...prev, [postId]: true }));
 
     try {
-      const response = await axios.post(
-        `/api/posts/${postId}/like`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const updatedPost = response.data?.post;
+      const data = await toggleLikeApi(postId, token);
+      const updatedPost = data?.post;
       if (updatedPost) {
         setPosts((prev) =>
           prev.map((post) =>
@@ -509,17 +544,13 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
     setPendingComments((prev) => ({ ...prev, [postId]: true }));
 
     try {
-      const response = await axios.post(
-        `/api/posts/${postId}/comments`,
+      const data = await addCommentApi(
+        postId,
         { text },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        token
       );
 
-      const updatedPost = response.data?.post;
+      const updatedPost = data?.post;
       if (updatedPost) {
         setPosts((prev) =>
           prev.map((post) =>
@@ -541,13 +572,21 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
     }
   };
 
-  const handleDeletePost = async (postId) => {
-    if (!postId) return;
+  const handleRequestDeletePost = (post) => {
+    if (!post?._id) return;
+    setPostPendingDeletion(post);
+    setIsDeleteModalOpen(true);
+    setOpenMenuId(null);
+  };
 
-    const confirmDelete = window.confirm(
-      "Delete this post? This action cannot be undone."
-    );
-    if (!confirmDelete) return;
+  const handleCancelDeletePost = () => {
+    setIsDeleteModalOpen(false);
+    setPostPendingDeletion(null);
+  };
+
+  const handleConfirmDeletePost = async () => {
+    const postId = postPendingDeletion?._id;
+    if (!postId) return;
 
     const token = localStorage.getItem("token");
     if (!token) {
@@ -557,11 +596,7 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
 
     try {
       setDeletingPostId(postId);
-      await axios.delete(`/api/posts/${postId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      await deletePostApi(postId, token);
 
       toast.success("Post deleted");
       setPosts((prev) => prev.filter((post) => post._id !== postId));
@@ -571,7 +606,8 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
       );
     } finally {
       setDeletingPostId(null);
-      setOpenMenuId(null);
+      setPostPendingDeletion(null);
+      setIsDeleteModalOpen(false);
     }
   };
 
@@ -681,17 +717,8 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
         formData.append("removeImage", "true");
       }
 
-      const response = await axios.put(
-        `/api/posts/${editingPostId}`,
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const updatedPost = response.data?.post;
+      const data = await updatePostApi(editingPostId, formData, token);
+      const updatedPost = data?.post;
       if (updatedPost) {
         setPosts((prev) =>
           prev.map((post) =>
@@ -951,7 +978,7 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => handleDeletePost(post._id)}
+                                onClick={() => handleRequestDeletePost(post)}
                                 className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 flex items-center justify-between disabled:opacity-60 disabled:cursor-not-allowed"
                                 disabled={isDeleting}
                               >
@@ -1125,7 +1152,7 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
                             {post.title}
                           </h2>
                           <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                            {post.content}
+                            {renderWithHashtags(post.content)}
                           </p>
                           <div className="flex items-center justify-start gap-6 text-sm text-gray-500">
                             <button
@@ -1218,7 +1245,7 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
                                             </span>
                                           </div>
                                           <p className="text-sm text-gray-700 whitespace-pre-line">
-                                            {comment.text}
+                                            {renderWithHashtags(comment.text)}
                                           </p>
                                         </div>
                                       </div>
@@ -1377,6 +1404,19 @@ export const Home = ({ user, onUserUpdated, onProfileHandlersReady }) => {
         onRemoveProfileImage={handleRemoveExistingProfileImage}
         onUndoRemoveProfileImage={handleUndoRemoveProfileImage}
         profileImageInputKey={profileImageInputKey}
+      />
+      <ConfirmDialog
+        isOpen={isDeleteModalOpen}
+        title="Delete post?"
+        message={deleteDialogMessage}
+        confirmLabel="Delete"
+        cancelLabel="Keep post"
+        onConfirm={handleConfirmDeletePost}
+        onCancel={handleCancelDeletePost}
+        loading={
+          !!postPendingDeletion &&
+          deletingPostId === postPendingDeletion._id
+        }
       />
     </div>
   );

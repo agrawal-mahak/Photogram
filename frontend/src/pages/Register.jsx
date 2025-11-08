@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import axios from 'axios'
+import { registerUser } from '../api/userApi'
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -26,10 +26,10 @@ const Register = () => {
     setLoading(true)
 
     try {
-      const response = await axios.post('/api/users/register', formData)
+      const data = await registerUser(formData)
       
       // Store token in localStorage
-      localStorage.setItem('token', response.data.token)
+      localStorage.setItem('token', data.token)
       
       // Redirect to home page
       // The App.jsx useEffect will automatically fetch user data on navigation

@@ -10,8 +10,8 @@ import { Home } from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import { useState, useEffect, useRef, useCallback } from "react";
-import axios from "axios";
 import  { Toaster } from "react-hot-toast";
+import { getCurrentUser } from "./api/userApi";
 
 function AppContent() {
   const [user, setUser] = useState(null);
@@ -34,12 +34,8 @@ function AppContent() {
       const token = localStorage.getItem("token");
       if (token) {
         try {
-          const response = await axios.get("/api/users/me", {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          })
-          setUser(response.data)
+          const data = await getCurrentUser(token)
+          setUser(data)
           
           // Show toast when navigating to home page after login
           const currentPath = location.pathname;
@@ -50,7 +46,7 @@ function AppContent() {
             lastPathRef.current = currentPath;
             
             // Show toast once when on home page and user is fetched (after navigation)
-            if (currentPath === '/' && response.data) {
+            if (currentPath === '/' && data) {
               // Use setTimeout to prevent double toast in StrictMode
               setTimeout(() => {
                 if (!hasShownToastRef.current) {

@@ -131,9 +131,10 @@ export const updatePost = async (req, res) => {
     }
 
     const updatedPost = await post.save();
-    await updatedPost
-      .populate("author_id", "username email profileImageUrl")
-      .populate("comments.user", "username email profileImageUrl");
+    await updatedPost.populate([
+      { path: "author_id", select: "username email profileImageUrl" },
+      { path: "comments.user", select: "username email profileImageUrl" },
+    ]);
 
     res.status(200).json({
       message: "Post updated successfully",

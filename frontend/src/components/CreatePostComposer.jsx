@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import axios from 'axios'
+import { createPost } from '../api/postApi'
 import toast from 'react-hot-toast'
 
 const getInitials = (name = '') =>
@@ -115,15 +115,11 @@ export const CreatePostComposer = ({
         formData.append('image', imageFile)
       }
 
-      const response = await axios.post('/api/posts', formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      const data = await createPost(formData, token)
 
       toast.success('Shared to your feed!')
 
-      const createdPost = response.data?.post
+      const createdPost = data?.post
       if (createdPost) {
         onPostCreated?.(createdPost)
       } else {
@@ -215,9 +211,9 @@ export const CreatePostComposer = ({
 
               <div className='flex items-center justify-between'>
                 <div className='flex gap-2 text-sm text-gray-400'>
-                  <span className='bg-gray-100 text-gray-500 px-3 py-1 rounded-full'>#moments</span>
-                  <span className='bg-gray-100 text-gray-500 px-3 py-1 rounded-full'>#daily</span>
-                  <span className='hidden sm:inline bg-gray-100 text-gray-500 px-3 py-1 rounded-full'>#community</span>
+                  <span className='bg-blue-50 text-blue-600 px-3 py-1 rounded-full'>#moments</span>
+                  <span className='bg-blue-50 text-blue-600 px-3 py-1 rounded-full'>#daily</span>
+                  <span className='hidden sm:inline bg-blue-50 text-blue-600 px-3 py-1 rounded-full'>#community</span>
                 </div>
                 <div className='flex items-center gap-3'>
                   <button
