@@ -1,19 +1,7 @@
-import axios from "axios";
-
-const withAuth = (token, config = {}) => {
-  if (!token) return config;
-
-  return {
-    ...config,
-    headers: {
-      ...(config.headers || {}),
-      Authorization: `Bearer ${token}`,
-    },
-  };
-};
+import apiClient, { withAuth } from "./httpClient.js";
 
 export const fetchPosts = async (token) => {
-  const response = await axios.get("/api/posts", withAuth(token));
+  const response = await apiClient.get("/api/posts", withAuth(token));
   return response.data;
 };
 
@@ -21,7 +9,7 @@ export const fetchMyPosts = async (token) => {
   if (!token) {
     throw new Error("Missing token");
   }
-  const response = await axios.get("/api/posts/my/posts", withAuth(token));
+  const response = await apiClient.get("/api/posts/my/posts", withAuth(token));
   return response.data;
 };
 
@@ -29,7 +17,7 @@ export const createPost = async (formData, token) => {
   if (!token) {
     throw new Error("Missing token");
   }
-  const response = await axios.post(
+  const response = await apiClient.post(
     "/api/posts",
     formData,
     withAuth(token)
@@ -41,7 +29,7 @@ export const updatePost = async (postId, formData, token) => {
   if (!token) {
     throw new Error("Missing token");
   }
-  const response = await axios.put(
+  const response = await apiClient.put(
     `/api/posts/${postId}`,
     formData,
     withAuth(token)
@@ -53,14 +41,14 @@ export const deletePost = async (postId, token) => {
   if (!token) {
     throw new Error("Missing token");
   }
-  await axios.delete(`/api/posts/${postId}`, withAuth(token));
+  await apiClient.delete(`/api/posts/${postId}`, withAuth(token));
 };
 
 export const toggleLike = async (postId, token) => {
   if (!token) {
     throw new Error("Missing token");
   }
-  const response = await axios.post(
+  const response = await apiClient.post(
     `/api/posts/${postId}/like`,
     {},
     withAuth(token)
@@ -72,7 +60,7 @@ export const addComment = async (postId, payload, token) => {
   if (!token) {
     throw new Error("Missing token");
   }
-  const response = await axios.post(
+  const response = await apiClient.post(
     `/api/posts/${postId}/comments`,
     payload,
     withAuth(token)
