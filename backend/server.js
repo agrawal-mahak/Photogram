@@ -15,6 +15,14 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api/users", authRoutes);
 app.use("/api/posts", postRoutes);
 
+app.get("/", (req, res) => {
+  res.send({
+    activeStatus: true,
+    error: false,
+    message: "Server is running",
+  });
+});
+
 connectDB();
 
 app.listen(PORT, () => {
