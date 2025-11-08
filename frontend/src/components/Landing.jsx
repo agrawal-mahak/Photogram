@@ -7,7 +7,7 @@ const landingCardContent = [
     image:
       'https://as1.ftcdn.net/jpg/02/13/92/58/1000_F_213925838_bQuGEmOEVooo82rAneUpa6cWyWXjfi67.jpg',
     caption: 'Real laughs, no filters.',
-    icon: '💬',
+    icon: '🩷',
   },
   {
     id: 'hangout',

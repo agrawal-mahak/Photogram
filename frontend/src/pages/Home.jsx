@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 import toast from 'react-hot-toast'
 import { Landing } from '../components/Landing'
+import { ProfileEditModal } from '../components/ProfileEditModal'
 
 const relativeTimeFromNow = (dateInput) => {
   if (!dateInput) return 'just now'
@@ -58,7 +59,7 @@ const getInitials = (name = '') => {
     .slice(0, 2)
 }
 
-export const Home = ({ user }) => {
+export const Home = ({ user, onUserUpdated }) => {
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(null)
@@ -75,6 +76,13 @@ export const Home = ({ user }) => {
   const [editingImagePreview, setEditingImagePreview] = useState(null)
   const [removeExistingImage, setRemoveExistingImage] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
+  const [isProfileSaving, setIsProfileSaving] = useState(false)
+  const [profileForm, setProfileForm] = useState({
+    username: user?.username || '',
+    email: user?.email || '',
+    password: '',
+  })
   const fileInputRef = useRef(null)
   const editingFileInputRef = useRef(null)
 
@@ -93,6 +101,14 @@ export const Home = ({ user }) => {
       }
     }
   }, [editingImagePreview])
+
+  useEffect(() => {
+    setProfileForm({
+      username: user?.username || '',
+      email: user?.email || '',
+      password: '',
+    })
+  }, [user])
 
   useEffect(() => {
     const handleGlobalClick = (event) => {
@@ -266,6 +282,75 @@ export const Home = ({ user }) => {
 
   const handleBoostProfile = () => {
     toast.success('Profile boosted! More people will see your next post.', { icon: '🚀' })
+  }
+
+  const handleOpenProfileModal = () => {
+    setProfileForm({
+      username: user?.username || '',
+      email: user?.email || '',
+      password: '',
+    })
+    setIsProfileModalOpen(true)
+  }
+
+  const handleCloseProfileModal = () => {
+    setIsProfileModalOpen(false)
+    setProfileForm((prev) => ({
+      username: user?.username || prev.username,
+      email: user?.email || prev.email,
+      password: '',
+    }))
+  }
+
+  const handleProfileFieldChange = (event) => {
+    const { name, value } = event.target
+    setProfileForm((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleSubmitProfileUpdate = async (event) => {
+    event.preventDefault()
+
+    const token = localStorage.getItem('token')
+
+    if (!token) {
+      toast.error('You need to be logged in to update your profile.')
+      return
+    }
+
+    const payload = {
+      username: profileForm.username.trim(),
+      email: profileForm.email.trim(),
+    }
+
+    if (!payload.username || !payload.email) {
+      toast.error('Username and email are required.')
+      return
+    }
+
+    if (profileForm.password.trim()) {
+      payload.password = profileForm.password.trim()
+    }
+
+    try {
+      setIsProfileSaving(true)
+      const response = await axios.put('/api/users/me', payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      const updatedUser = response.data?.user || response.data
+      if (updatedUser) {
+        onUserUpdated?.(updatedUser)
+      }
+
+      toast.success(response.data?.message || 'Profile updated')
+      handleCloseProfileModal()
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not update profile right now.')
+    } finally {
+      setIsProfileSaving(false)
+    }
   }
 
   const handleMenuToggle = (event, postId) => {
@@ -846,7 +931,7 @@ export const Home = ({ user }) => {
               </div>
               <button
                 type='button'
-                onClick={handleBoostProfile}
+                onClick={handleOpenProfileModal}
                 className='w-full text-sm font-semibold border border-gray-200 rounded-xl py-2 hover:border-gray-300 transition'
               >
                 Edit profile
@@ -885,6 +970,15 @@ export const Home = ({ user }) => {
           </aside>
         </main>
       </div>
+
+      <ProfileEditModal
+        isOpen={isProfileModalOpen}
+        form={profileForm}
+        onChange={handleProfileFieldChange}
+        onSubmit={handleSubmitProfileUpdate}
+        onClose={handleCloseProfileModal}
+        isSaving={isProfileSaving}
+      />
     </div>
   )
 }

@@ -58,7 +58,56 @@ router.post("/login", async (req, res) => {
 
 // me
 router.get("/me", protect, async (req, res) => {
-    res.status(200).json(req.user);
+  res.status(200).json(req.user);
+});
+
+router.put("/me", protect, async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (username && username.trim() !== user.username) {
+      const existingUsername = await User.findOne({ username: username.trim(), _id: { $ne: user._id } });
+      if (existingUsername) {
+        return res.status(400).json({ message: "Username already taken" });
+      }
+      user.username = username.trim();
+    }
+
+    if (email && email.trim() !== user.email) {
+      const existingEmail = await User.findOne({ email: email.trim(), _id: { $ne: user._id } });
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email already in use" });
+      }
+      user.email = email.trim().toLowerCase();
+    }
+
+    if (password && password.trim()) {
+      user.password = password;
+    }
+
+    const updatedUser = await user.save();
+    const sanitizedUser = {
+      _id: updatedUser._id,
+      username: updatedUser.username,
+      email: updatedUser.email,
+      createdAt: updatedUser.createdAt,
+      updatedAt: updatedUser.updatedAt,
+    };
+
+    return res.status(200).json({
+      message: "Profile updated successfully",
+      user: sanitizedUser,
+    });
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
 });
 
 
